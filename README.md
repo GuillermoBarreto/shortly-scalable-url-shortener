@@ -1,20 +1,13 @@
-# Shortly – Scalable URL Shortener
+# Shortly 🔗 - Scalable URL Shortener API
 
-A fast, scalable URL shortener service built with FastAPI and Redis.
+A blazing-fast URL shortener API built with FastAPI, ready for scale.
 
 ## Features
-- Shortens long URLs into tiny links
-- Fast redirection using Redis cache
-- Tracks click analytics (IP + timestamp)
-- Designed for scalability and easy deployment (Docker-ready)
+- ⚡ FastAPI backend
+- 🔁 URL shortening with redirection
+- 📊 Analytics tracking (clicks, IPs, timestamps)
+- 📦 Modular and scalable code structure
 
-## Tech Stack
-- FastAPI (Python)
-- Redis
-- PostgreSQL or in-memory dict (starter)
-- Docker (coming soon)
-
-## Run Locally
-
+## Run It
 ```bash
 uvicorn app.main:app --reload
