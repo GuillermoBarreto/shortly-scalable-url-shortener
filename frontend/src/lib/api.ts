@@ -1,0 +1,4 @@
+export const API = import.meta.env.VITE_API_URL ?? '/api/v1';
+export type Link = {id:string;short_code:string;short_url:string;original_url:string;title:string|null;custom_alias:string|null;is_active:boolean;expires_at:string|null;created_at:string;updated_at:string;total_clicks:number};
+export const token = () => localStorage.getItem('access_token');
+export async function request<T>(path:string, init:RequestInit={}):Promise<T>{const headers=new Headers(init.headers);headers.set('Content-Type','application/json');if(token())headers.set('Authorization',`Bearer ${token()}`);const response=await fetch(`${API}${path}`,{...init,headers});if(!response.ok){const body=await response.json().catch(()=>({detail:'Something went wrong'}));throw new Error(body.detail ?? 'Something went wrong');}if(response.status===204)return undefined as T;return response.json();}
