@@ -55,9 +55,27 @@ app.include_router(dashboard.router, prefix="/api/v1")
 @app.middleware("http")
 async def request_size_limit(request: Request, call_next):
     length = request.headers.get("content-length")
-    if length and int(length) > settings.max_request_bytes:
-        return JSONResponse(status_code=413, content={"detail": "Request body is too large"})
+    if length:
+        try:
+            content_length = int(length)
+        except ValueError:
+            return JSONResponse(status_code=400, content={"detail": "Invalid Content-Length"})
+        if content_length < 0:
+            return JSONResponse(status_code=400, content={"detail": "Invalid Content-Length"})
+        if content_length > settings.max_request_bytes:
+            return JSONResponse(status_code=413, content={"detail": "Request body is too large"})
     return await call_next(request)
+
+
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    if request.url.path.startswith("/api/v1/auth/"):
+        response.headers["Cache-Control"] = "no-store"
+    return response
 
 
 @app.get("/health", tags=["operations"])
