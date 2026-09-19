@@ -15,6 +15,11 @@ class RateLimiter:
         bucket = self.events[key]
         while bucket and bucket[0] <= now - window:
             bucket.popleft()
+        if not bucket:
+            # Drop fully-expired buckets so memory stays bounded as distinct
+            # keys (e.g. one per client IP) come and go over time.
+            del self.events[key]
+            bucket = self.events[key]
         if len(bucket) >= limit:
             raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "Rate limit exceeded")
         bucket.append(now)
