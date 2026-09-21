@@ -35,6 +35,12 @@ def normalize_alias(value: str | None) -> str | None:
     return alias
 
 
+def validate_future_expiry(value: datetime | None) -> datetime | None:
+    if value and (value if value.tzinfo else value.replace(tzinfo=UTC)) <= datetime.now(UTC):
+        raise ValueError("Expiration must be in the future")
+    return value
+
+
 class LinkCreate(BaseModel):
     original_url: AnyHttpUrl
     title: str | None = Field(None, max_length=120)
@@ -45,9 +51,7 @@ class LinkCreate(BaseModel):
     @field_validator("expires_at")
     @classmethod
     def future_expiry(cls, value: datetime | None) -> datetime | None:
-        if value and (value if value.tzinfo else value.replace(tzinfo=UTC)) <= datetime.now(UTC):
-            raise ValueError("Expiration must be in the future")
-        return value
+        return validate_future_expiry(value)
 
 
 class LinkUpdate(BaseModel):
@@ -57,6 +61,11 @@ class LinkUpdate(BaseModel):
     expires_at: datetime | None = None
     is_active: bool | None = None
     _alias = field_validator("custom_alias", mode="before")(normalize_alias)
+
+    @field_validator("expires_at")
+    @classmethod
+    def future_expiry(cls, value: datetime | None) -> datetime | None:
+        return validate_future_expiry(value)
 
 
 class LinkResponse(BaseModel):
