@@ -56,7 +56,13 @@ async def login(
 @router.post("/refresh", response_model=TokenPair)
 async def refresh(payload: RefreshRequest, session: SessionDep, settings: SettingsDep):
     data = decode_token(payload.refresh_token, "refresh", settings)
-    user = await session.get(User, UUID(data["sub"]))
+    try:
+        user_id = UUID(data["sub"])
+    except (KeyError, TypeError, ValueError):
+        # A well-formed token always carries a UUID sub; anything else is
+        # tampered data that should not surface as a 500.
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid or expired token")
+    user = await session.get(User, user_id)
     if not user:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "User no longer exists")
     return tokens(user, settings)
