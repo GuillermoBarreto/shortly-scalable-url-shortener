@@ -18,7 +18,12 @@ def hash_password(password: str) -> str:
 
 
 def verify_password(password: str, password_hash: str) -> bool:
-    return password_context.verify(password, password_hash)
+    try:
+        return password_context.verify(password, password_hash)
+    except (ValueError, AttributeError, TypeError):
+        # A corrupted or non-pwdlib hash must fail closed as a wrong password,
+        # not bubble up as a 500 at login time.
+        return False
 
 
 def create_token(user_id: UUID, token_type: str, settings: Settings) -> str:
