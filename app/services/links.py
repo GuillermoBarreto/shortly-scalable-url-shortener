@@ -17,6 +17,8 @@ ALPHABET = string.ascii_letters + string.digits
 
 
 class LinkService:
+    """Application logic for link CRUD, code allocation, and availability checks."""
+
     def __init__(self, session: AsyncSession, settings: Settings, cache: CacheService):
         self.session = session
         self.settings = settings
@@ -29,6 +31,7 @@ class LinkService:
         return result
 
     async def create(self, payload: LinkCreate, owner_id: UUID | None) -> Link:
+        """Persist a new link, retrying random codes up to 5 times on collision."""
         alias = payload.custom_alias
         for _ in range(5):
             code = alias or "".join(secrets.choice(ALPHABET) for _ in range(7))
@@ -53,12 +56,14 @@ class LinkService:
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Could not allocate a short code")
 
     async def owned(self, link_id: UUID, owner_id: UUID) -> Link:
+        """Fetch a link scoped to its owner, or raise 404."""
         link = await self.repo.owned(link_id, owner_id)
         if not link:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Link not found")
         return link
 
     async def update(self, link: Link, payload: LinkUpdate) -> Link:
+        """Apply a partial update, invalidating stale cache entries."""
         old_code = link.short_code
         changes = payload.model_dump(exclude_unset=True)
         if "original_url" in changes:
@@ -78,6 +83,7 @@ class LinkService:
 
     @staticmethod
     def unavailable(link: Link) -> str | None:
+        """Return why a link can't redirect ('disabled'/'expired'), or None if usable."""
         if not link.is_active:
             return "disabled"
         expires = link.expires_at
