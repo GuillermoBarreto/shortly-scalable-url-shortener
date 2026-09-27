@@ -42,6 +42,10 @@ class CacheService:
         ttl = 3600
         if value.expires_at:
             expires = datetime.fromisoformat(value.expires_at)
+            if expires.tzinfo is None:
+                # Treat naive timestamps as UTC: mixing naive and aware
+                # datetimes would raise TypeError and fail the cache write.
+                expires = expires.replace(tzinfo=UTC)
             ttl = max(1, min(ttl, int((expires - datetime.now(UTC)).total_seconds())))
         try:
             await self.client.setex(f"link:{code}", ttl, json.dumps(asdict(value)))
