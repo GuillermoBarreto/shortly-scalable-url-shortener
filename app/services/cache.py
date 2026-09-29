@@ -41,12 +41,18 @@ class CacheService:
             return
         ttl = 3600
         if value.expires_at:
-            expires = datetime.fromisoformat(value.expires_at)
-            if expires.tzinfo is None:
-                # Treat naive timestamps as UTC: mixing naive and aware
-                # datetimes would raise TypeError and fail the cache write.
-                expires = expires.replace(tzinfo=UTC)
-            ttl = max(1, min(ttl, int((expires - datetime.now(UTC)).total_seconds())))
+            try:
+                expires = datetime.fromisoformat(value.expires_at)
+            except ValueError:
+                # A malformed timestamp must not crash the cache write; keep
+                # the default TTL instead.
+                logger.warning("invalid expires_at in cached link", exc_info=True)
+            else:
+                if expires.tzinfo is None:
+                    # Treat naive timestamps as UTC: mixing naive and aware
+                    # datetimes would raise TypeError and fail the cache write.
+                    expires = expires.replace(tzinfo=UTC)
+                ttl = max(1, min(ttl, int((expires - datetime.now(UTC)).total_seconds())))
         try:
             await self.client.setex(f"link:{code}", ttl, json.dumps(asdict(value)))
         except Exception:
