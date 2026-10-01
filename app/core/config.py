@@ -1,6 +1,6 @@
 from functools import lru_cache
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -33,6 +33,17 @@ class Settings(BaseSettings):
     @classmethod
     def trim_url(cls, value: str) -> str:
         return value.rstrip("/")
+
+    @model_validator(mode="after")
+    def reject_dev_secrets(self) -> "Settings":
+        # The checked-in dev defaults must never sign tokens or salt hashes in
+        # a real deployment; fail fast instead of running insecurely.
+        if self.environment != "development":
+            if self.secret_key == "development-only-secret-key-change-me":
+                raise ValueError("secret_key must be set to a real secret outside development")
+            if self.analytics_salt == "development-analytics-salt-change-me":
+                raise ValueError("analytics_salt must be set to a real value outside development")
+        return self
 
 
 @lru_cache
