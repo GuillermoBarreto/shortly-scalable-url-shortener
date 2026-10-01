@@ -12,7 +12,10 @@ from app.models import ClickEvent, Link
 
 def client_ip(headers: dict[str, str], direct_ip: str, settings: Settings) -> str:
     if settings.trust_proxy_headers:
-        return headers.get("x-forwarded-for", direct_ip).split(",")[0].strip()
+        # An empty X-Forwarded-For header must not become the client identity:
+        # every visitor would hash to the same empty IP.
+        forwarded = headers.get("x-forwarded-for", "").split(",")[0].strip()
+        return forwarded or direct_ip
     return direct_ip
 
 
