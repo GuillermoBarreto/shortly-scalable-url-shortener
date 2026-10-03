@@ -102,7 +102,12 @@ async def redirect(short_code: str, request: Request):
     async with SessionLocal() as session:
         link: Link | None = None
         if cached:
-            link = await session.get(Link, UUID(cached.id))
+            try:
+                link = await session.get(Link, UUID(cached.id))
+            except ValueError:
+                # A corrupt cache entry falls back to the database lookup,
+                # never a 500 on the public redirect path.
+                link = None
         if not link:
             link = await LinkRepository(session).by_code(short_code)
         if not link:
