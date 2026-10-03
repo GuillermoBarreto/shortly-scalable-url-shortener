@@ -24,11 +24,15 @@ class LinkRepository:
     ) -> tuple[list[Link], int]:
         filters = [Link.owner_id == owner_id]
         if search:
+            # Escape LIKE wildcards so a literal "%" or "_" in the query
+            # matches itself instead of acting as a wildcard.
+            escaped = search.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+            pattern = f"%{escaped}%"
             filters.append(
                 or_(
-                    Link.title.ilike(f"%{search}%"),
-                    Link.short_code.ilike(f"%{search}%"),
-                    Link.original_url.ilike(f"%{search}%"),
+                    Link.title.ilike(pattern, escape="\\"),
+                    Link.short_code.ilike(pattern, escape="\\"),
+                    Link.original_url.ilike(pattern, escape="\\"),
                 )
             )
         if active is not None:
