@@ -11,6 +11,10 @@ class RateLimiter:
         self.events: dict[str, deque[float]] = defaultdict(deque)
 
     def check(self, key: str, limit: int, window: int = 60) -> None:
+        if limit <= 0:
+            raise ValueError("limit must be a positive integer")
+        if window <= 0:
+            raise ValueError("window must be a positive number of seconds")
         now = time.monotonic()
         bucket = self.events[key]
         while bucket and bucket[0] <= now - window:
