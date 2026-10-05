@@ -7,6 +7,7 @@ from uuid import UUID
 import jwt
 from fastapi import HTTPException, status
 from pwdlib import PasswordHash
+from pwdlib import exceptions as pwdlib_exceptions
 
 from app.core.config import Settings
 
@@ -20,8 +21,9 @@ def hash_password(password: str) -> str:
 def verify_password(password: str, password_hash: str) -> bool:
     try:
         return password_context.verify(password, password_hash)
-    except (ValueError, AttributeError, TypeError):
-        # A corrupted or non-pwdlib hash must fail closed as a wrong password,
+    except (ValueError, AttributeError, TypeError, pwdlib_exceptions.PwdlibError):
+        # A corrupted or non-pwdlib hash raises pwdlib's own UnknownHashError
+        # (not ValueError); it must still fail closed as a wrong password,
         # not bubble up as a 500 at login time.
         return False
 
