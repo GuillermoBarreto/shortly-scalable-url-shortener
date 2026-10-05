@@ -27,11 +27,14 @@ def verify_password(password: str, password_hash: str) -> bool:
 
 
 def create_token(user_id: UUID, token_type: str, settings: Settings) -> str:
-    lifetime = (
-        timedelta(minutes=settings.access_token_minutes)
-        if token_type == "access"
-        else timedelta(days=settings.refresh_token_days)
-    )
+    if token_type == "access":
+        lifetime = timedelta(minutes=settings.access_token_minutes)
+    elif token_type == "refresh":
+        lifetime = timedelta(days=settings.refresh_token_days)
+    else:
+        # An unknown type used to silently fall through to the refresh
+        # lifetime, minting a wrongly-scoped token. Fail fast instead.
+        raise ValueError(f"Unknown token type: {token_type!r}")
     now = datetime.now(UTC)
     return jwt.encode(
         {
