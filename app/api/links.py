@@ -90,6 +90,9 @@ async def delete_link(
 async def qr_code(
     link_id: UUID, user: CurrentUser, session: SessionDep, settings: SettingsDep, request: Request
 ):
+    # QR rendering is CPU-heavy; cap it per user so an authenticated client
+    # can't turn it into a cheap denial-of-service vector.
+    request.app.state.limiter.check(f"qr:{user.id}", 30)
     service = LinkService(session, settings, request.app.state.cache)
     link = await service.owned(link_id, user.id)
     image = qrcode.make(f"{settings.public_base_url}/{link.short_code}")
