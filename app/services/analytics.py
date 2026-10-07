@@ -26,11 +26,15 @@ async def record_click(
     browser = agent.user_agent.family if agent.user_agent else "Unknown"
     os_name = agent.os.family if agent.os else "Unknown"
     device_family = agent.device.family if agent.device else "Other"
+    # ua-parser labels bots as the "Spider" device family; counting them as
+    # Desktop traffic would quietly skew the analytics breakdowns.
     device = (
         "Mobile"
         if "Mobile" in device_family
+        else "Bot"
+        if device_family == "Spider"
         else "Desktop"
-        if device_family in {"Other", "Spider"}
+        if device_family == "Other"
         else "Tablet"
     )
     country = headers.get("cf-ipcountry") or headers.get("x-country-code")
