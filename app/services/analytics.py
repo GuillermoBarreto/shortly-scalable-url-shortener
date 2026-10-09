@@ -1,7 +1,7 @@
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from ua_parser import parse
 
@@ -49,7 +49,11 @@ async def record_click(
             visitor_hash=visitor_hash(ip, settings),
         )
     )
-    link.total_clicks += 1
+    # Increment atomically: two concurrent redirects must not lose a click to a
+    # read-modify-write race on the ORM attribute.
+    await session.execute(
+        update(Link).where(Link.id == link.id).values(total_clicks=Link.total_clicks + 1)
+    )
     await session.commit()
 
 

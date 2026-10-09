@@ -1,5 +1,4 @@
 from datetime import UTC, datetime, timedelta
-
 from uuid import UUID
 
 from app.core.config import get_settings
@@ -43,6 +42,39 @@ async def test_url_and_alias_validation(client):
             json={"original_url": "https://example.com", "custom_alias": "bad alias"},
         )
     ).status_code == 422
+
+
+async def test_alias_minimum_length_matches_documented_rule(client):
+    # The validation message promises 3-64 chars; 1- and 2-char aliases must be rejected.
+    for alias in ("x", "ab"):
+        response = await client.post(
+            "/api/v1/links",
+            json={"original_url": "https://example.com", "custom_alias": alias},
+        )
+        assert response.status_code == 422
+    ok = await client.post(
+        "/api/v1/links",
+        json={"original_url": "https://example.com", "custom_alias": "abc"},
+    )
+    assert ok.status_code == 201
+
+
+async def test_concurrent_redirects_do_not_lose_clicks(client):
+    created = (
+        await client.post("/api/v1/links", json={"original_url": "https://example.com"})
+    ).json()
+    link_id = UUID(created["id"])
+    settings = get_settings()
+    # Interleave two sessions the way concurrent redirects would: each reads the
+    # counter before the other commits, so a read-modify-write increment loses one.
+    async with SessionLocal() as first, SessionLocal() as second:
+        link_first = await first.get(Link, link_id)
+        link_second = await second.get(Link, link_id)
+        await record_click(first, link_first, {}, "1.1.1.1", settings)
+        await record_click(second, link_second, {}, "2.2.2.2", settings)
+    async with SessionLocal() as session:
+        link = await session.get(Link, link_id)
+        assert link.total_clicks == 2
 
 
 async def test_duplicate_alias(client):
@@ -105,18 +137,3 @@ async def test_qr_code(client, auth):
     assert response.status_code == 200
     assert response.headers["content-type"] == "image/png"
     assert response.content.startswith(b"\x89PNG")
-
-
-async def test_alias_minimum_length_matches_documented_rule(client):
-    # The validation message promises 3-64 chars; 1- and 2-char aliases must be rejected.
-    for alias in ("x", "ab"):
-        response = await client.post(
-            "/api/v1/links",
-            json={"original_url": "https://example.com", "custom_alias": alias},
-        )
-        assert response.status_code == 422
-    ok = await client.post(
-        "/api/v1/links",
-        json={"original_url": "https://example.com", "custom_alias": "abc"},
-    )
-    assert ok.status_code == 201
