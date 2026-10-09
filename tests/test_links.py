@@ -1,5 +1,12 @@
 from datetime import UTC, datetime, timedelta
 
+from uuid import UUID
+
+from app.core.config import get_settings
+from app.db.session import SessionLocal
+from app.models import Link
+from app.services.analytics import record_click
+
 
 async def test_anonymous_creation_and_redirect_records_analytics(client):
     created = await client.post(
@@ -98,3 +105,18 @@ async def test_qr_code(client, auth):
     assert response.status_code == 200
     assert response.headers["content-type"] == "image/png"
     assert response.content.startswith(b"\x89PNG")
+
+
+async def test_alias_minimum_length_matches_documented_rule(client):
+    # The validation message promises 3-64 chars; 1- and 2-char aliases must be rejected.
+    for alias in ("x", "ab"):
+        response = await client.post(
+            "/api/v1/links",
+            json={"original_url": "https://example.com", "custom_alias": alias},
+        )
+        assert response.status_code == 422
+    ok = await client.post(
+        "/api/v1/links",
+        json={"original_url": "https://example.com", "custom_alias": "abc"},
+    )
+    assert ok.status_code == 201

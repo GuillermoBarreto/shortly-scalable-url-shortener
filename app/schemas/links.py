@@ -21,7 +21,8 @@ RESERVED_ALIASES = {
     "assets",
     "favicon.ico",
 }
-ALIAS_PATTERN = re.compile(r"^[a-z0-9](?:[a-z0-9_-]{1,62}[a-z0-9])?$")
+# 3-64 chars, starting and ending with a letter or digit, as the error message promises.
+ALIAS_PATTERN = re.compile(r"^[a-z0-9][a-z0-9_-]{1,62}[a-z0-9]$")
 
 
 def normalize_alias(value: str | None) -> str | None:
