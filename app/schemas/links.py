@@ -28,6 +28,10 @@ ALIAS_PATTERN = re.compile(r"^[a-z0-9][a-z0-9_-]{1,62}[a-z0-9]$")
 def normalize_alias(value: str | None) -> str | None:
     if value is None:
         return None
+    # mode="before" runs before pydantic's type coercion, so a non-string
+    # (e.g. {"custom_alias": 123}) would AttributeError into a 500.
+    if not isinstance(value, str):
+        raise ValueError("Alias must be a string")
     alias = value.strip().lower()
     if alias in RESERVED_ALIASES:
         raise ValueError("This alias is reserved")
