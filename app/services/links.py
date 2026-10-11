@@ -53,6 +53,11 @@ class LinkService:
                     raise HTTPException(
                         status.HTTP_409_CONFLICT, "Custom alias is already in use"
                     ) from exc
+                if "short_code" not in str(getattr(exc, "orig", exc)).lower():
+                    # Not a code collision (FK, NOT NULL, ...) — retrying won't help.
+                    raise HTTPException(
+                        status.HTTP_500_INTERNAL_SERVER_ERROR, "Failed to create link"
+                    ) from exc
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Could not allocate a short code")
 
     async def owned(self, link_id: UUID, owner_id: UUID) -> Link:
@@ -68,6 +73,13 @@ class LinkService:
         changes = payload.model_dump(exclude_unset=True)
         if "original_url" in changes:
             changes["original_url"] = str(changes["original_url"])
+        if "custom_alias" in changes and not changes["custom_alias"]:
+            # An explicit null would clear the column while short_code kept the
+            # old alias: an inconsistent record. Clearing is not supported.
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_ENTITY,
+                "Custom alias cannot be cleared once set",
+            )
         if "custom_alias" in changes and changes["custom_alias"]:
             changes["short_code"] = changes["custom_alias"]
         for key, value in changes.items():
