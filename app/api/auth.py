@@ -58,10 +58,10 @@ async def refresh(payload: RefreshRequest, session: SessionDep, settings: Settin
     data = decode_token(payload.refresh_token, "refresh", settings)
     try:
         user_id = UUID(data["sub"])
-    except (KeyError, TypeError, ValueError):
+    except (KeyError, TypeError, ValueError) as exc:
         # A well-formed token always carries a UUID sub; anything else is
         # tampered data that should not surface as a 500.
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid or expired token")
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid or expired token") from exc
     user = await session.get(User, user_id)
     if not user:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "User no longer exists")
